@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx
+  namespace: {{ .Values.namespaceName }}
+spec:
+  selector:
+    matchLabels:
+      app: nginx
+  template:    
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      volumes:
+        - name: storage
+          persistentVolumeClaim:
+            claimName: storage-pvc
+        - name: config
+          configMap:
+              name: nginx-config
+              items:
+                - key: default.conf
+                  path: default.conf
+        - name: upload-page
+          configMap:
+              name: nginx-config
+              items:
+                - key: test.html
+                  path: test.html
+      containers:
+      - name: nginx        
+        image: nginxupload.azurecr.io/nginx-upload:3
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        ports:
+        - containerPort: 80
+        volumeMounts:
+          - mountPath: /web/nginx/html/data
+            name: storage
+          - mountPath: /web/nginx/conf/conf.d
+            name: config
+          - mountPath: /web/nginx/html/
+            name: upload-page
+---
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: storage-pvc
+  namespace: {{ .Values.namespaceName }}
+spec:
+  storageClassName: ceph-block
+  resources:
+    requests:      
+      storage: 10Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce 
